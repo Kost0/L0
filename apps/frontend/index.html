@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Get order</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 16px;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        table {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        th {
+            text-align: left;
+            background-color: #f5f5f5;
+            padding: 6px;
+        }
+        td {
+            padding: 4px 6px;
+        }
+        caption {
+            text-align: left;
+            font-weight: bold;
+            margin: 10px 0 5px;
+            color: #333;
+        }
+        p {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Просмотр информации о заказе</h1>
+    <div>
+        <input type="text" id="orderId" placeholder="Введите ID" />
+        <button onclick="fetchOrder()">Показать заказ</button>
+    </div>
+    <div id="result"></div>
+</body>
+</html>
