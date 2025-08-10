@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/Kost0/L0/internal/repository"
-	"github.com/Kost0/L0/internal/server"
-	"github.com/Kost0/L0/internal/workWithKafka"
 	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/Kost0/L0/internal/http"
+	"github.com/Kost0/L0/internal/kafka"
+	"github.com/Kost0/L0/internal/repository"
 )
 
 func main() {
@@ -38,13 +39,13 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		server.StartHTTPServer(ctx)
+		http.StartHTTPServer(ctx)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		workWithKafka.StartKafka(ctx)
+		kafka.StartKafka(ctx, db)
 	}()
 
 	<-done

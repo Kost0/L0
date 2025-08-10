@@ -1,13 +1,16 @@
-package workWithKafka
+package kafka
 
 import (
 	"context"
-	"github.com/segmentio/kafka-go"
+	"database/sql"
 	"log"
 	"time"
+
+	"github.com/Kost0/L0/internal/repository"
+	"github.com/segmentio/kafka-go"
 )
 
-func StartKafka(ctx context.Context) {
+func StartKafka(ctx context.Context, db *sql.DB) {
 	brokerAddress := "localhost:9092"
 	topic := "orders"
 	groupID := "myGroup"
@@ -36,6 +39,10 @@ func StartKafka(ctx context.Context) {
 				}
 				log.Printf("Error reading message: %s\n", err)
 				continue
+			}
+			err = repository.InsertOrder(db, &msg)
+			if err != nil {
+				log.Printf("Error inserting order: %s\n", err)
 			}
 			log.Printf("Message on %s: %s\n", msg.Topic, string(msg.Value))
 		}
