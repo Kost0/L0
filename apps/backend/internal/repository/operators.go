@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 
 	"github.com/Kost0/L0/internal/models"
 	"github.com/segmentio/kafka-go"
@@ -34,7 +35,7 @@ INSERT INTO delivery (
 `
 
 	queryPayment := `
-INSERT INTO payments (
+INSERT INTO payment (
     id,
     transaction,
     request_id,
@@ -63,12 +64,13 @@ INSERT INTO orders (
     sm_id,
     date_created,
     oof_shard
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
 `
 
 	queryItem := `
 INSERT INTO items (
-	order_uid,
+    id,
+    order_id,
     chrt_id,
     track_number,
     price,
@@ -80,7 +82,7 @@ INSERT INTO items (
     nm_id,
     brand,
     status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);`
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);`
 
 	_, err = db.Exec(queryDelivery,
 		delivery.ID,
@@ -95,6 +97,7 @@ INSERT INTO items (
 	if err != nil {
 		return err
 	}
+	log.Println("Delivery inserted")
 
 	_, err = db.Exec(queryPayment,
 		payment.ID,
@@ -103,6 +106,7 @@ INSERT INTO items (
 		payment.Currency,
 		payment.Provider,
 		payment.Amount,
+		payment.PaymentDT,
 		payment.Bank,
 		payment.DeliveryCost,
 		payment.GoodsTotal,
@@ -111,13 +115,14 @@ INSERT INTO items (
 	if err != nil {
 		return err
 	}
+	log.Println("payment inserted")
 
 	_, err = db.Exec(queryOrder,
 		order.OrderUID,
 		order.TrackNumber,
 		order.Entry,
-		order.PaymentID,
 		order.DeliveryID,
+		order.PaymentID,
 		order.Locale,
 		order.InternalSignature,
 		order.CustomerID,
@@ -130,9 +135,11 @@ INSERT INTO items (
 	if err != nil {
 		return err
 	}
+	log.Println("Order inserted")
 
 	for _, i := range items {
-		db.Exec(queryItem,
+		_, err = db.Exec(queryItem,
+			i.ID,
 			i.OrderUID,
 			i.ChrtID,
 			i.TrackNumber,
@@ -146,7 +153,11 @@ INSERT INTO items (
 			i.Brand,
 			i.Status,
 		)
+		if err != nil {
+			return err
+		}
 	}
+	log.Println("Items inserted")
 	return nil
 }
 
@@ -158,54 +169,61 @@ func SelectOrder(db *sql.DB, orderUID string) (*models.CombinedData, error) {
 
 	queryOrder := `SELECT * FROM orders WHERE order_uid = $1`
 	row := db.QueryRow(queryOrder, orderUID)
-	err := row.Scan(order.OrderUID,
-		order.TrackNumber,
-		order.Entry,
-		order.PaymentID,
-		order.DeliveryID,
-		order.Locale,
-		order.InternalSignature,
-		order.CustomerID,
-		order.DeliveryService,
-		order.Shardkey,
-		order.SmID,
-		order.DateCreated,
-		order.OofShard,
+	err := row.Scan(
+		&order.OrderUID,
+		&order.TrackNumber,
+		&order.Entry,
+		&order.DeliveryID,
+		&order.PaymentID,
+		&order.Locale,
+		&order.InternalSignature,
+		&order.CustomerID,
+		&order.DeliveryService,
+		&order.Shardkey,
+		&order.SmID,
+		&order.DateCreated,
+		&order.OofShard,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	queryDelivery := `SELECT * FROM delivery
-INNER JOIN orders ON delivery.order_uid = orders.order_uid`
-	row = db.QueryRow(queryDelivery, orderUID)
-	err = row.Scan(delivery.ID,
-		delivery.Name,
-		delivery.Phone,
-		delivery.Zip,
-		delivery.City,
-		delivery.Address,
-		delivery.Region,
-		delivery.Email)
+	queryDelivery := `SELECT * FROM delivery WHERE id = $1`
+	row = db.QueryRow(queryDelivery, order.DeliveryID)
+	err = row.Scan(
+		&delivery.ID,
+		&delivery.Name,
+		&delivery.Phone,
+		&delivery.Zip,
+		&delivery.City,
+		&delivery.Address,
+		&delivery.Region,
+		&delivery.Email,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	queryPayment := `SELECT * FROM payment
-INNER JOIN orders ON payment.order_uid = orders.order_uid`
-	row = db.QueryRow(queryPayment, orderUID)
-	err = row.Scan(payment.ID,
-		payment.Transaction,
-		payment.RequestID,
-		payment.Currency,
-		payment.Provider,
-		payment.Amount,
-		payment.Bank,
-		payment.DeliveryCost,
-		payment.GoodsTotal,
-		payment.CustomFee)
+	queryPayment := `SELECT * FROM payment WHERE id = $1`
+	row = db.QueryRow(queryPayment, order.PaymentID)
+	err = row.Scan(
+		&payment.ID,
+		&payment.Transaction,
+		&payment.RequestID,
+		&payment.Currency,
+		&payment.Provider,
+		&payment.Amount,
+		&payment.PaymentDT,
+		&payment.Bank,
+		&payment.DeliveryCost,
+		&payment.GoodsTotal,
+		&payment.CustomFee,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	queryItems := `SELECT * FROM items WHERE order_uid = $1`
+	queryItems := `SELECT * FROM items WHERE order_id = $1`
 	rows, err := db.Query(queryItems, orderUID)
 	if err != nil {
 		return nil, err
@@ -214,24 +232,32 @@ INNER JOIN orders ON payment.order_uid = orders.order_uid`
 
 	for rows.Next() {
 		item := models.Item{}
-		err = rows.Scan(item.OrderUID,
-			item.ChrtID,
-			item.TrackNumber,
-			item.Price,
-			item.Rid,
-			item.Name,
-			item.Sale,
-			item.Size,
-			item.TotalPrice,
-			item.NmID,
-			item.Brand,
-			item.Status)
+		err = rows.Scan(
+			&item.ID,
+			&item.OrderUID,
+			&item.ChrtID,
+			&item.TrackNumber,
+			&item.Price,
+			&item.Rid,
+			&item.Name,
+			&item.Sale,
+			&item.Size,
+			&item.TotalPrice,
+			&item.NmID,
+			&item.Brand,
+			&item.Status,
+		)
 		if err != nil {
 			return nil, err
 		}
 		items = append(items, item)
 	}
 
-	data := models.CombinedData{order, payment, delivery, items}
+	data := models.CombinedData{
+		Order:    order,
+		Payment:  payment,
+		Delivery: delivery,
+		Items:    items,
+	}
 	return &data, nil
 }

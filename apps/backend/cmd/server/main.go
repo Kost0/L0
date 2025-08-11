@@ -39,7 +39,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		http.StartHTTPServer(ctx)
+		http.StartHTTPServer(ctx, db)
 	}()
 
 	wg.Add(1)

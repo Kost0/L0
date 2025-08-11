@@ -11,7 +11,7 @@ import (
 )
 
 func StartKafka(ctx context.Context, db *sql.DB) {
-	brokerAddress := "localhost:9092"
+	brokerAddress := "kafka:19092"
 	topic := "orders"
 	groupID := "myGroup"
 

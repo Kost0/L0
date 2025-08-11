@@ -13,16 +13,16 @@ import (
 
 func SendTestMessage() {
 	writer := &kafka.Writer{
-		Addr:     kafka.TCP("kafka:9092"),
+		Addr:     kafka.TCP("localhost:9092"),
 		Topic:    "orders",
 		Balancer: &kafka.LeastBytes{},
 	}
 	defer writer.Close()
 
-	orderUUID := uuid.New()
-	deliveryUUID := uuid.New()
-	paymentUUID := uuid.New()
-	ItemUUID := uuid.New()
+	orderUUID := uuid.New().String()
+	deliveryUUID := uuid.New().String()
+	paymentUUID := uuid.New().String()
+	ItemUUID := uuid.New().String()
 
 	orderTime, err := time.Parse(time.RFC3339, "2021-11-26T06:22:19Z")
 	if err != nil {
@@ -101,4 +101,5 @@ func SendTestMessage() {
 	} else {
 		log.Printf("Successfully sent message")
 	}
+	print(orderUUID)
 }

@@ -19,7 +19,7 @@ async function fetchOrder() {
         const order = await response.json();
         resultDiv.innerHTML = generateOrderTable(order);
     } catch (error) {
-        resultDiv.innerHTML = '<p style="color: red;">Ошибка: ${error.message}</p>';
+        resultDiv.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
     }
 }
 
@@ -36,7 +36,7 @@ function objectToTable(obj, title = "") {
         }
         else if (key.toLowerCase().includes('date') && value) {
             const date = new Date(value)
-            displayValue = isNan(date) ? value : date.toLocalString('ru-RU')
+            displayValue = isNaN(date) ? value : date.toLocaleString('ru-RU')
         }
 
         rows += `<tr><td><strong>${key}:</strong></td><td>${displayValue}</td></tr>`;
@@ -80,16 +80,12 @@ function arrayToTable(array) {
 function generateOrderTable(order) {
     const { delivery, payment, items, ...mainData } = order;
 
-    const mainTable = objectToTable(mainData, "Основная информация");
-
     let deliveryTable = delivery ? objectToTable(delivery, "delivery") : "";
     let paymentTable = payment ? objectToTable(payment, "payment") : "";
     let itemsTable = items ? arrayToTable(items, "items") : "";
 
     return `
     <div style="font-family: Arial, sans-serif; max-width: 1000px;">
-      <h2>Заказ #${order.id}</h2>
-      ${mainTable}
       ${deliveryTable}
       ${paymentTable}
       ${itemsTable}

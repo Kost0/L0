@@ -2,21 +2,32 @@ package http
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/Kost0/L0/internal/handlers"
+	"github.com/go-chi/chi/v5"
 )
 
-func StartHTTPServer(ctx context.Context) {
-	router := http.NewServeMux()
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello, World!")
+func StartHTTPServer(ctx context.Context, db *sql.DB) {
+	r := chi.NewRouter()
+
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "Hello World")
 	})
+
+	h := handlers.Handler{
+		DB: db,
+	}
+
+	r.Get("/orders/{orderID}", h.GetOrderByID)
 
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: router,
+		Handler: r,
 	}
 
 	go func() {

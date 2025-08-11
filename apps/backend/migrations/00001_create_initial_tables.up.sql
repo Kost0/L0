@@ -41,7 +41,7 @@ CREATE TABLE orders (
 
 CREATE TABLE items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_uid VARCHAR(255) REFERENCES orders(order_uid)
+    order_id VARCHAR(255) REFERENCES orders(order_uid),
     chrt_id INT NOT NULL,
     track_number VARCHAR(100) NOT NULL,
     price INT NOT NULL,
