@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Kost0/L0/internal/cache"
 	"github.com/Kost0/L0/internal/http"
 	"github.com/Kost0/L0/internal/kafka"
 	"github.com/Kost0/L0/internal/repository"
@@ -27,6 +28,13 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("Migrations complete")
+
+	orderCache := cache.NewOrderCache(48 * time.Hour)
+
+	err = orderCache.WarmUpCache(db, context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

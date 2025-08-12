@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Kost0/L0/internal/cache"
 	"github.com/Kost0/L0/internal/repository"
 	"github.com/go-chi/chi/v5"
 )
@@ -25,6 +26,17 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderID := chi.URLParam(r, "orderID")
+
+	w.Header().Set("Content-Type", "application/json")
+
+	data, ok := cache.Get(orderID)
+	if ok {
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	data, err := repository.SelectOrder(h.DB, orderID)
 	log.Printf("Selected order %+v", data)
 	if err != nil {
@@ -32,7 +44,6 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	if err = json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
