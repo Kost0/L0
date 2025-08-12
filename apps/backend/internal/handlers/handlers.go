@@ -12,8 +12,18 @@ import (
 )
 
 type Handler struct {
-	DB *sql.DB
+	DB    *sql.DB
+	Cache *cache.OrderCache
 }
+
+// GetOrderByID godoc
+// @Summary Receive an order by ID
+// @Description Gets information about an order by its ID
+// @Produce json
+// @Param orderID path string true "Order ID"
+// @Success {object} CombinedData "OK
+// @Failure 500 {string} string "Internal server error"
+// @Router /orders/{orderID} [get]
 
 func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5000")
@@ -29,12 +39,13 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	data, ok := cache.Get(orderID)
+	data, ok := h.Cache.Get(orderID)
 	if ok {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		return
 	}
 
 	data, err := repository.SelectOrder(h.DB, orderID)
@@ -43,6 +54,9 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+
+	h.Cache.Set(orderID, data)
+	log.Printf("Order %s cached", orderID)
 
 	if err = json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

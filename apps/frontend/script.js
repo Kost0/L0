@@ -16,8 +16,15 @@ async function fetchOrder() {
             throw new Error(`Заказ не найден: ${response.status}`);
         }
 
-        const order = await response.json();
-        resultDiv.innerHTML = generateOrderTable(order);
+        const rawOrder = await response.json();
+
+        const adaptedOrder = {
+            ...rawOrder.Order,
+            Delivery: rawOrder.Delivery,
+            Payment: rawOrder.Payment,
+            Items: rawOrder.Items
+        }
+        resultDiv.innerHTML = generateOrderTable(adaptedOrder);
     } catch (error) {
         resultDiv.innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
     }
@@ -36,14 +43,14 @@ function objectToTable(obj, title = "") {
         }
         else if (key.toLowerCase().includes('date') && value) {
             const date = new Date(value)
-            displayValue = isNaN(date) ? value : date.toLocaleString('ru-RU')
+            displayValue = isNaN(date.getTime()) ? value : date.toLocaleString('ru-RU')
         }
 
         rows += `<tr><td><strong>${key}:</strong></td><td>${displayValue}</td></tr>`;
     }
 
     return`
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+    <table class="data-table">
       ${title ? `<caption><strong>${title}</strong></caption>` : ""}
       ${rows}
     </table>
@@ -58,7 +65,7 @@ function arrayToTable(array) {
     let dataRows = array.map(item => {
         let cells = headers.map(h => {
             let val = item[h];
-            if (val instanceof Date) val = val.toLocalString();
+            if (val instanceof Date) val = val.toLocaleString();
             if (typeof val === 'object') val = JSON.stringify(val, null, 2);
             return `<td style="padding: 4px 8px; border-bottom: 1px solid #eee;">${val ?? '-'}</td>`;
         }).join("");
@@ -66,7 +73,7 @@ function arrayToTable(array) {
     }).join("");
 
     return `
-    <table style="width: 100%; border-collapse: collapse; margin: 5px 0; font-size: 0.9em;">
+    <table class="data-table">
       <thead>
         <tr>${headerRow}</tr>
       </thead>
@@ -78,14 +85,20 @@ function arrayToTable(array) {
 }
 
 function generateOrderTable(order) {
-    const { delivery, payment, items, ...mainData } = order;
+    if (!order) {
+        return '<p>Данные заказа отсутствуют</p>'
+    }
 
-    let deliveryTable = delivery ? objectToTable(delivery, "delivery") : "";
-    let paymentTable = payment ? objectToTable(payment, "payment") : "";
-    let itemsTable = items ? arrayToTable(items, "items") : "";
+    const { Delivery, Payment, Items, ...mainData } = order;
+
+    let mainTable = objectToTable(mainData, "order")
+    let deliveryTable = Delivery ? objectToTable(Delivery, "delivery") : "";
+    let paymentTable = Payment ? objectToTable(Payment, "payment") : "";
+    let itemsTable = Items ? arrayToTable(Items, "items") : "";
 
     return `
     <div style="font-family: Arial, sans-serif; max-width: 1000px;">
+      ${mainTable}
       ${deliveryTable}
       ${paymentTable}
       ${itemsTable}

@@ -1,3 +1,8 @@
+// @title L0 API
+// @version 1.0
+// @description API for getting order information
+// @host localhost:8080
+// @BasePath /
 package main
 
 import (
@@ -9,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/Kost0/L0/docs"
 	"github.com/Kost0/L0/internal/cache"
 	"github.com/Kost0/L0/internal/http"
 	"github.com/Kost0/L0/internal/kafka"
@@ -47,7 +53,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		http.StartHTTPServer(ctx, db)
+		http.StartHTTPServer(ctx, db, orderCache)
 	}()
 
 	wg.Add(1)

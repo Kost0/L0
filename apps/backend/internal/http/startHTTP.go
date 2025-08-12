@@ -8,19 +8,24 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Kost0/L0/internal/cache"
 	"github.com/Kost0/L0/internal/handlers"
 	"github.com/go-chi/chi/v5"
+	"github.com/swaggo/http-swagger"
 )
 
-func StartHTTPServer(ctx context.Context, db *sql.DB) {
+func StartHTTPServer(ctx context.Context, db *sql.DB, cache *cache.OrderCache) {
 	r := chi.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello World")
 	})
 
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
+
 	h := handlers.Handler{
-		DB: db,
+		DB:    db,
+		Cache: cache,
 	}
 
 	r.Get("/orders/{orderID}", h.GetOrderByID)

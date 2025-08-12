@@ -27,12 +27,12 @@ func (c *OrderCache) Set(orderID string, data *models.CombinedData) {
 	})
 }
 
-func (c *OrderCache) Get(orderID string) (models.CombinedData, bool) {
+func (c *OrderCache) Get(orderID string) (*models.CombinedData, bool) {
 	v, ok := c.data.Load(orderID)
 	if !ok {
-		return models.CombinedData{}, false
+		return &models.CombinedData{}, false
 	}
-	return v.(models.CombinedData), true
+	return v.(*models.CombinedData), true
 }
 
 func (c *OrderCache) WarmUpCache(db *sql.DB, ctx context.Context) error {
@@ -66,7 +66,7 @@ WHERE date_created >= NOW() - INTERVAL '7 days'
 
 	for rows.Next() {
 		id := ""
-		err = rows.Scan(id)
+		err = rows.Scan(&id)
 		if err != nil {
 			return nil, err
 		}

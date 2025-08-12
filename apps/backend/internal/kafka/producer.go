@@ -24,7 +24,7 @@ func SendTestMessage() {
 	paymentUUID := uuid.New().String()
 	ItemUUID := uuid.New().String()
 
-	orderTime, err := time.Parse(time.RFC3339, "2021-11-26T06:22:19Z")
+	orderTime, err := time.Parse(time.RFC3339, "2025-08-11T06:22:19Z")
 	if err != nil {
 		log.Fatal(err)
 	}

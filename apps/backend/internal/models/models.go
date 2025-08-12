@@ -2,6 +2,8 @@ package models
 
 import "time"
 
+// Order provides main information about the order
+// @Description Main order information
 type Order struct {
 	OrderUID          string    `json:"orderUID"`
 	TrackNumber       string    `json:"trackNumber"`
@@ -18,6 +20,8 @@ type Order struct {
 	OofShard          string    `json:"oofShard"`
 }
 
+// Delivery provides information about the delivery
+// @Description delivery information
 type Delivery struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -29,6 +33,8 @@ type Delivery struct {
 	Email   string `json:"email"`
 }
 
+// Payment provides information about the payment
+// @Description payment information
 type Payment struct {
 	ID           string `json:"id"`
 	Transaction  string `json:"transaction"`
@@ -43,6 +49,8 @@ type Payment struct {
 	CustomFee    int    `json:"customFee"`
 }
 
+// Item provides information about the product
+// @Description Product information
 type Item struct {
 	ID          string `json:"id"`
 	OrderUID    string `json:"orderUID"`
@@ -59,9 +67,15 @@ type Item struct {
 	Status      int    `json:"status"`
 }
 
+// CombinedData presents all the information about the order
+// @Description Information about the order and nested structures
 type CombinedData struct {
-	Order    Order
-	Payment  Payment
+	// Main order information
+	Order Order
+	// payment information
+	Payment Payment
+	// delivery information
 	Delivery Delivery
-	Items    []Item
+	// items information
+	Items []Item
 }

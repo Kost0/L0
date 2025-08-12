@@ -1,0 +1,9 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: API for getting order information
+  title: L0 API
+  version: "1.0"
+paths: {}
+swagger: "2.0"
