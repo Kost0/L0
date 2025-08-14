@@ -35,8 +35,8 @@ func (c *OrderCache) Get(orderID string) (*models.CombinedData, bool) {
 	return v.(*models.CombinedData), true
 }
 
-func (c *OrderCache) WarmUpCache(db *sql.DB, ctx context.Context) error {
-	data, err := getRecentOrders(db, ctx)
+func (c *OrderCache) WarmUpCache(db *sql.DB, repo repository.OrderRepository, ctx context.Context) error {
+	data, err := getRecentOrders(db, repo, ctx)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (c *OrderCache) WarmUpCache(db *sql.DB, ctx context.Context) error {
 	return nil
 }
 
-func getRecentOrders(db *sql.DB, ctx context.Context) ([]*models.CombinedData, error) {
+func getRecentOrders(db *sql.DB, repo repository.OrderRepository, ctx context.Context) ([]*models.CombinedData, error) {
 	query := `
 SELECT order_uid FROM orders
 WHERE date_created >= NOW() - INTERVAL '7 days'
@@ -70,11 +70,14 @@ WHERE date_created >= NOW() - INTERVAL '7 days'
 		if err != nil {
 			return nil, err
 		}
-		data, err := repository.SelectOrder(db, id)
+		data, err := repo.SelectOrder(id)
 		if err != nil {
 			return nil, err
 		}
 		allData = append(allData, data)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return allData, nil

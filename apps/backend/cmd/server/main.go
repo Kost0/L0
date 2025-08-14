@@ -35,9 +35,11 @@ func main() {
 	}
 	log.Println("Migrations complete")
 
+	repo := repository.NewOrderRepository(db)
+
 	orderCache := cache.NewOrderCache(48 * time.Hour)
 
-	err = orderCache.WarmUpCache(db, context.Background())
+	err = orderCache.WarmUpCache(db, repo, context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}

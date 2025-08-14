@@ -3,11 +3,20 @@ package repository
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/Kost0/L0/internal/models"
 	"github.com/segmentio/kafka-go"
 )
+
+type SQLOrderRepository struct {
+	db *sql.DB
+}
+
+func NewOrderRepository(db *sql.DB) *SQLOrderRepository {
+	return &SQLOrderRepository{db: db}
+}
 
 func InsertOrder(db *sql.DB, msg *kafka.Message) error {
 	var data models.CombinedData
@@ -21,7 +30,8 @@ func InsertOrder(db *sql.DB, msg *kafka.Message) error {
 	order := data.Order
 	items := data.Items
 
-	queryDelivery := `
+	query := `
+BEGIN;
 INSERT INTO delivery (
     id,
     name,
@@ -32,9 +42,7 @@ INSERT INTO delivery (
     region,
     email
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
-`
 
-	queryPayment := `
 INSERT INTO payment (
     id,
     transaction,
@@ -47,9 +55,8 @@ INSERT INTO payment (
     delivery_cost,
     goods_total,
     custom_fee
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);`
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
 
-	queryOrder := `
 INSERT INTO orders (
     order_uid,
     track_number,
@@ -65,9 +72,10 @@ INSERT INTO orders (
     date_created,
     oof_shard
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
-`
 
-	queryItem := `
+`
+	for _, i := range items {
+		query += fmt.Sprintf(`
 INSERT INTO items (
     id,
     order_id,
@@ -82,63 +90,8 @@ INSERT INTO items (
     nm_id,
     brand,
     status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);`
-
-	_, err = db.Exec(queryDelivery,
-		delivery.ID,
-		delivery.Name,
-		delivery.Phone,
-		delivery.Zip,
-		delivery.City,
-		delivery.Address,
-		delivery.Region,
-		delivery.Email,
-	)
-	if err != nil {
-		return err
-	}
-	log.Println("Delivery inserted")
-
-	_, err = db.Exec(queryPayment,
-		payment.ID,
-		payment.Transaction,
-		payment.RequestID,
-		payment.Currency,
-		payment.Provider,
-		payment.Amount,
-		payment.PaymentDT,
-		payment.Bank,
-		payment.DeliveryCost,
-		payment.GoodsTotal,
-		payment.CustomFee,
-	)
-	if err != nil {
-		return err
-	}
-	log.Println("payment inserted")
-
-	_, err = db.Exec(queryOrder,
-		order.OrderUID,
-		order.TrackNumber,
-		order.Entry,
-		order.DeliveryID,
-		order.PaymentID,
-		order.Locale,
-		order.InternalSignature,
-		order.CustomerID,
-		order.DeliveryService,
-		order.Shardkey,
-		order.SmID,
-		order.DateCreated,
-		order.OofShard,
-	)
-	if err != nil {
-		return err
-	}
-	log.Println("Order inserted")
-
-	for _, i := range items {
-		_, err = db.Exec(queryItem,
+) VALUES (%s, %s, %d, %s, %d, %s, %s, %d, %s, %d, %d, %s, %d);
+`,
 			i.ID,
 			i.OrderUID,
 			i.ChrtID,
@@ -153,22 +106,63 @@ INSERT INTO items (
 			i.Brand,
 			i.Status,
 		)
-		if err != nil {
-			return err
-		}
 	}
-	log.Println("Items inserted")
+
+	query += fmt.Sprintf(`
+COMMIT;
+`)
+
+	_, err = db.Exec(query,
+		delivery.ID,
+		delivery.Name,
+		delivery.Phone,
+		delivery.Zip,
+		delivery.City,
+		delivery.Address,
+		delivery.Region,
+		delivery.Email,
+		payment.ID,
+		payment.Transaction,
+		payment.RequestID,
+		payment.Currency,
+		payment.Provider,
+		payment.Amount,
+		payment.PaymentDT,
+		payment.Bank,
+		payment.DeliveryCost,
+		payment.GoodsTotal,
+		payment.CustomFee,
+		order.OrderUID,
+		order.TrackNumber,
+		order.Entry,
+		order.DeliveryID,
+		order.PaymentID,
+		order.Locale,
+		order.InternalSignature,
+		order.CustomerID,
+		order.DeliveryService,
+		order.Shardkey,
+		order.SmID,
+		order.DateCreated,
+		order.OofShard,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	log.Println("Data inserted in db")
 	return nil
 }
 
-func SelectOrder(db *sql.DB, orderUID string) (*models.CombinedData, error) {
+func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData, error) {
 	order := models.Order{}
 	delivery := models.Delivery{}
 	payment := models.Payment{}
 	items := []models.Item{}
 
 	queryOrder := `SELECT * FROM orders WHERE order_uid = $1`
-	row := db.QueryRow(queryOrder, orderUID)
+	row := r.db.QueryRow(queryOrder, orderUID)
 	err := row.Scan(
 		&order.OrderUID,
 		&order.TrackNumber,
@@ -189,7 +183,7 @@ func SelectOrder(db *sql.DB, orderUID string) (*models.CombinedData, error) {
 	}
 
 	queryDelivery := `SELECT * FROM delivery WHERE id = $1`
-	row = db.QueryRow(queryDelivery, order.DeliveryID)
+	row = r.db.QueryRow(queryDelivery, &order.DeliveryID)
 	err = row.Scan(
 		&delivery.ID,
 		&delivery.Name,
@@ -205,7 +199,7 @@ func SelectOrder(db *sql.DB, orderUID string) (*models.CombinedData, error) {
 	}
 
 	queryPayment := `SELECT * FROM payment WHERE id = $1`
-	row = db.QueryRow(queryPayment, order.PaymentID)
+	row = r.db.QueryRow(queryPayment, &order.PaymentID)
 	err = row.Scan(
 		&payment.ID,
 		&payment.Transaction,
@@ -224,7 +218,7 @@ func SelectOrder(db *sql.DB, orderUID string) (*models.CombinedData, error) {
 	}
 
 	queryItems := `SELECT * FROM items WHERE order_id = $1`
-	rows, err := db.Query(queryItems, orderUID)
+	rows, err := r.db.Query(queryItems, orderUID)
 	if err != nil {
 		return nil, err
 	}
