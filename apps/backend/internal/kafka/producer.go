@@ -29,59 +29,100 @@ func SendTestMessage() {
 		log.Fatal(err)
 	}
 
+	track := "WBILMTESTTRACK"
+	entry := "WBIL"
+	locale := "en"
+	internalSignature := ""
+	customer := "test"
+	deliveryService := "meest"
+	shardKey := "9"
+	smID := 99
+	oofShard := "1"
+
+	name := "Test Testov"
+	phone := "+9720000000"
+	zip := "2639809"
+	city := "Kiryat Mozkin"
+	address := "Ploshad Mira 15"
+	region := "Kraiot"
+	email := "test@gmail.com"
+
+	transaction := "b563feb7b2b84b6test"
+	requestId := ""
+	currency := "USD"
+	provider := "wbpay"
+	amount := 1817
+	paymentDT := 1637907727
+	bank := "alpha"
+	deliveryCost := 1500
+	goodsTotal := 317
+	customFee := 0
+
+	chrtID := 9934930
+	trackNum := "WBILMTESTTRACK"
+	price := 453
+	rid := "ab4219087a764ae0btest"
+	name2 := "Mascaras"
+	sale := 30
+	size := "0"
+	totalPrice := 317
+	nmId := 2389212
+	brand := "Vivienne Sabo"
+	status := 202
+
 	data := models.CombinedData{
 		Order: models.Order{
 			orderUUID,
-			"WBILMTESTTRACK",
-			"WBIL",
-			deliveryUUID,
-			paymentUUID,
-			"en",
-			"",
-			"test",
-			"meest",
-			"9",
-			99,
-			orderTime,
-			"1",
+			&track,
+			&entry,
+			&deliveryUUID,
+			&paymentUUID,
+			&locale,
+			&internalSignature,
+			&customer,
+			&deliveryService,
+			&shardKey,
+			&smID,
+			&orderTime,
+			&oofShard,
 		},
 		Delivery: models.Delivery{
-			deliveryUUID,
-			"Test Testov",
-			"+9720000000",
-			"2639809",
-			"Kiryat Mozkin",
-			"Ploshad Mira 15",
-			"Kraiot",
-			"test@gmail.com",
+			&deliveryUUID,
+			&name,
+			&phone,
+			&zip,
+			&city,
+			&address,
+			&region,
+			&email,
 		},
 		Payment: models.Payment{
-			paymentUUID,
-			"b563feb7b2b84b6test",
-			"",
-			"USD",
-			"wbpay",
-			1817,
-			1637907727,
-			"alpha",
-			1500,
-			317,
-			0,
+			&paymentUUID,
+			&transaction,
+			&requestId,
+			&currency,
+			&provider,
+			&amount,
+			&paymentDT,
+			&bank,
+			&deliveryCost,
+			&goodsTotal,
+			&customFee,
 		},
 		Items: []models.Item{models.Item{
-			ItemUUID,
-			orderUUID,
-			9934930,
-			"WBILMTESTTRACK",
-			453,
-			"ab4219087a764ae0btest",
-			"Mascaras",
-			30,
-			"0",
-			317,
-			2389212,
-			"Vivienne Sabo",
-			202,
+			&ItemUUID,
+			&orderUUID,
+			&chrtID,
+			&trackNum,
+			&price,
+			&rid,
+			&name2,
+			&sale,
+			&size,
+			&totalPrice,
+			&nmId,
+			&brand,
+			&status,
 		}},
 	}
 
@@ -101,5 +142,6 @@ func SendTestMessage() {
 	} else {
 		log.Printf("Successfully sent message")
 	}
+
 	print(orderUUID)
 }

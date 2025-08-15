@@ -1,13 +1,14 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/Kost0/L0/internal/models"
-	"github.com/segmentio/kafka-go"
 )
 
 type SQLOrderRepository struct {
@@ -18,20 +19,13 @@ func NewOrderRepository(db *sql.DB) *SQLOrderRepository {
 	return &SQLOrderRepository{db: db}
 }
 
-func InsertOrder(db *sql.DB, msg *kafka.Message) error {
-	var data models.CombinedData
-	err := json.Unmarshal(msg.Value, &data)
-	if err != nil {
-		return err
-	}
-
+func InsertOrder(db *sql.DB, data *models.CombinedData) error {
 	delivery := data.Delivery
 	payment := data.Payment
 	order := data.Order
 	items := data.Items
 
-	query := `
-BEGIN;
+	queryDelivery := `
 INSERT INTO delivery (
     id,
     name,
@@ -42,7 +36,9 @@ INSERT INTO delivery (
     region,
     email
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+`
 
+	queryPayment := `
 INSERT INTO payment (
     id,
     transaction,
@@ -56,7 +52,9 @@ INSERT INTO payment (
     goods_total,
     custom_fee
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+`
 
+	queryOrder := `
 INSERT INTO orders (
     order_uid,
     track_number,
@@ -72,10 +70,8 @@ INSERT INTO orders (
     date_created,
     oof_shard
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
-
 `
-	for _, i := range items {
-		query += fmt.Sprintf(`
+	queryItem := `
 INSERT INTO items (
     id,
     order_id,
@@ -90,69 +86,120 @@ INSERT INTO items (
     nm_id,
     brand,
     status
-) VALUES (%s, %s, %d, %s, %d, %s, %s, %d, %s, %d, %d, %s, %d);
-`,
-			i.ID,
-			i.OrderUID,
-			i.ChrtID,
-			i.TrackNumber,
-			i.Price,
-			i.Rid,
-			i.Name,
-			i.Sale,
-			i.Size,
-			i.TotalPrice,
-			i.NmID,
-			i.Brand,
-			i.Status,
-		)
-	}
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+`
 
-	query += fmt.Sprintf(`
-COMMIT;
-`)
-
-	_, err = db.Exec(query,
-		delivery.ID,
-		delivery.Name,
-		delivery.Phone,
-		delivery.Zip,
-		delivery.City,
-		delivery.Address,
-		delivery.Region,
-		delivery.Email,
-		payment.ID,
-		payment.Transaction,
-		payment.RequestID,
-		payment.Currency,
-		payment.Provider,
-		payment.Amount,
-		payment.PaymentDT,
-		payment.Bank,
-		payment.DeliveryCost,
-		payment.GoodsTotal,
-		payment.CustomFee,
-		order.OrderUID,
-		order.TrackNumber,
-		order.Entry,
-		order.DeliveryID,
-		order.PaymentID,
-		order.Locale,
-		order.InternalSignature,
-		order.CustomerID,
-		order.DeliveryService,
-		order.Shardkey,
-		order.SmID,
-		order.DateCreated,
-		order.OofShard,
-	)
-
+	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 
+	_, err = tx.Exec(queryDelivery,
+		*delivery.ID,
+		*delivery.Name,
+		*delivery.Phone,
+		*delivery.Zip,
+		*delivery.City,
+		*delivery.Address,
+		*delivery.Region,
+		*delivery.Email,
+	)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("failed to insert delivery")
+	}
+
+	_, err = tx.Exec(queryPayment,
+		*payment.ID,
+		*payment.Transaction,
+		*payment.RequestID,
+		*payment.Currency,
+		*payment.Provider,
+		*payment.Amount,
+		*payment.PaymentDT,
+		*payment.Bank,
+		*payment.DeliveryCost,
+		*payment.GoodsTotal,
+		*payment.CustomFee,
+	)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("failed to insert payment")
+	}
+
+	_, err = tx.Exec(queryOrder,
+		order.OrderUID,
+		*order.TrackNumber,
+		*order.Entry,
+		*order.DeliveryID,
+		*order.PaymentID,
+		*order.Locale,
+		*order.InternalSignature,
+		*order.CustomerID,
+		*order.DeliveryService,
+		*order.Shardkey,
+		*order.SmID,
+		*order.DateCreated,
+		*order.OofShard,
+	)
+	if err != nil {
+		tx.Rollback()
+		return errors.New("failed to insert order")
+	}
+
+	for _, i := range items {
+		_, err = tx.Exec(queryItem,
+			*i.ID,
+			*i.OrderUID,
+			*i.ChrtID,
+			*i.TrackNumber,
+			*i.Price,
+			*i.Rid,
+			*i.Name,
+			*i.Sale,
+			*i.Size,
+			*i.TotalPrice,
+			*i.NmID,
+			*i.Brand,
+			*i.Status,
+		)
+		if err != nil {
+			tx.Rollback()
+			return errors.New("failed to insert item")
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 	log.Println("Data inserted in db")
 	return nil
+}
+
+func InsertWithRetry(ctx context.Context, db *sql.DB, data *models.CombinedData) error {
+	maxRetries := 5
+	delay := time.Millisecond * 50
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := InsertOrder(db, data)
+		if err == nil {
+			return nil
+		}
+
+		if !(errors.Is(err, sql.ErrConnDone) || errors.Is(err, sql.ErrTxDone)) {
+			return err
+		}
+
+		delay *= 2
+
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
+	return fmt.Errorf("insert failed, retry after %d attempts", maxRetries)
 }
 
 func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData, error) {
@@ -254,4 +301,29 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 		Items:    items,
 	}
 	return &data, nil
+}
+
+func (r *SQLOrderRepository) SelectWithRetry(ctx context.Context, orderUID string) (*models.CombinedData, error) {
+	maxRetries := 5
+	delay := time.Millisecond * 50
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		data, err := r.SelectOrder(orderUID)
+		if err == nil {
+			return data, nil
+		}
+
+		if !(errors.Is(err, sql.ErrConnDone) || errors.Is(err, sql.ErrTxDone)) {
+			return nil, err
+		}
+
+		delay *= 2
+
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
+	return nil, fmt.Errorf("select failed, retry after %d attempts", maxRetries)
 }

@@ -30,7 +30,7 @@ CREATE TABLE orders (
     delivery_id UUID REFERENCES delivery(id),
     payment_id UUID REFERENCES payment(id),
     locale VARCHAR(10) NOT NULL,
-    internal_signature VARCHAR(255) NOT NULL,
+    internal_signature VARCHAR(255),
     customer_id VARCHAR(255) NOT NULL,
     delivery_service VARCHAR(255) NOT NULL,
     shardkey VARCHAR(255) NOT NULL,

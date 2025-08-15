@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,11 +9,12 @@ import (
 
 	"github.com/Kost0/L0/internal/cache"
 	"github.com/Kost0/L0/internal/handlers"
+	"github.com/Kost0/L0/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"github.com/swaggo/http-swagger"
 )
 
-func StartHTTPServer(ctx context.Context, db *sql.DB, cache *cache.OrderCache) {
+func StartHTTPServer(ctx context.Context, repo *repository.SQLOrderRepository, cache *cache.OrderCache) {
 	r := chi.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +24,7 @@ func StartHTTPServer(ctx context.Context, db *sql.DB, cache *cache.OrderCache) {
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
 
 	h := handlers.Handler{
-		DB:    db,
+		Repo:  repo,
 		Cache: cache,
 	}
 

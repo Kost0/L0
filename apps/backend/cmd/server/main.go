@@ -55,13 +55,16 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		http.StartHTTPServer(ctx, db, orderCache)
+		http.StartHTTPServer(ctx, repo, orderCache)
 	}()
+
+	ctx2, cancel := context.WithTimeout(context.Background(), time.Second*4)
+	defer cancel()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		kafka.StartKafka(ctx, db)
+		kafka.StartKafka(ctx2, db)
 	}()
 
 	<-done

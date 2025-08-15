@@ -3,10 +3,15 @@ package kafka
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
 	"log"
+	"net/mail"
 	"time"
 
+	"github.com/Kost0/L0/internal/models"
 	"github.com/Kost0/L0/internal/repository"
+	"github.com/go-playground/validator"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -33,6 +38,7 @@ func StartKafka(ctx context.Context, db *sql.DB) {
 			return
 		default:
 			msg, err := reader.ReadMessage(ctx)
+			log.Print("Reading message...")
 			if err != nil {
 				if ctx.Err() != nil || ctx.Err() == context.DeadlineExceeded {
 					return
@@ -40,11 +46,46 @@ func StartKafka(ctx context.Context, db *sql.DB) {
 				log.Printf("Error reading message: %s\n", err)
 				continue
 			}
-			err = repository.InsertOrder(db, &msg)
+
+			var data models.CombinedData
+			err = json.Unmarshal(msg.Value, &data)
+			if err != nil {
+				log.Printf("Error unmarshalling message: %s\n", err)
+			}
+
+			if err = validateData(&data); err != nil {
+				log.Printf("Error validating data: %s\n", err)
+			}
+
+			err = repository.InsertWithRetry(ctx, db, &data)
 			if err != nil {
 				log.Printf("Error inserting order: %s\n", err)
 			}
+
 			log.Printf("Message on %s: %s\n", msg.Topic, string(msg.Value))
 		}
 	}
+}
+
+func validateData(data *models.CombinedData) error {
+	validate := validator.New()
+	if err := validate.Struct(data); err != nil {
+		return err
+	}
+
+	if data.Order.DateCreated.After(time.Now()) {
+		return errors.New("Order date created is in the future")
+	}
+
+	if _, err := mail.ParseAddress(*data.Delivery.Email); err != nil {
+		return err
+	}
+
+	for _, item := range data.Items {
+		if *item.Price < 0 {
+			return errors.New("Item price is negative")
+		}
+	}
+
+	return nil
 }

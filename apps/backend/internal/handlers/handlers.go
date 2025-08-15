@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Kost0/L0/internal/cache"
 	"github.com/Kost0/L0/internal/repository"
@@ -12,7 +15,7 @@ import (
 )
 
 type Handler struct {
-	DB    *sql.DB
+	Repo  *repository.SQLOrderRepository
 	Cache *cache.OrderCache
 }
 
@@ -21,10 +24,10 @@ type Handler struct {
 // @Description Gets information about an order by its ID
 // @Produce json
 // @Param orderID path string true "Order ID"
-// @Success {object} CombinedData "OK
+// @Success 200 {object} models.CombinedData "OK"
+// @Failure 404 {string} string "There is no such order"
 // @Failure 500 {string} string "Internal server error"
 // @Router /orders/{orderID} [get]
-
 func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5000")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
@@ -48,10 +51,18 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := repository.SelectOrder(h.DB, orderID)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*4)
+	defer cancel()
+
+	data, err := h.Repo.SelectWithRetry(ctx, orderID)
 	log.Printf("Selected order %+v", data)
 	if err != nil {
 		log.Println(err)
+		if errors.Is(err, sql.ErrNoRows) {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 
