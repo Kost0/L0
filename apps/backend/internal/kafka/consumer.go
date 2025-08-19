@@ -1,8 +1,8 @@
+// Package cmd provides work with cmd
 package kafka
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"log"
@@ -15,10 +15,14 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-func StartKafka(ctx context.Context, db *sql.DB) {
-	brokerAddress := "kafka:19092"
-	topic := "orders"
-	groupID := "myGroup"
+// StartKafka launches cmd consumer to process messages
+// Accepts:
+//   - ctx: context
+//   - db: database
+func StartKafka(ctx context.Context, repo repository.OrderRepository) {
+	brokerAddress := "kafka:9092"
+	topic := "test123"
+	groupID := "myOrdersGroup-12345"
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:          []string{brokerAddress},
@@ -28,6 +32,8 @@ func StartKafka(ctx context.Context, db *sql.DB) {
 		MaxBytes:         10e6,
 		MaxWait:          1 * time.Second,
 		RebalanceTimeout: 20 * time.Second,
+		StartOffset:      kafka.FirstOffset,
+		CommitInterval:   0,
 	})
 	defer reader.Close()
 
@@ -38,7 +44,7 @@ func StartKafka(ctx context.Context, db *sql.DB) {
 			return
 		default:
 			msg, err := reader.ReadMessage(ctx)
-			log.Print("Reading message...")
+
 			if err != nil {
 				if ctx.Err() != nil || ctx.Err() == context.DeadlineExceeded {
 					return
@@ -46,25 +52,36 @@ func StartKafka(ctx context.Context, db *sql.DB) {
 				log.Printf("Error reading message: %s\n", err)
 				continue
 			}
-
-			var data models.CombinedData
-			err = json.Unmarshal(msg.Value, &data)
+			err = processMessage(ctx, repo, &msg)
 			if err != nil {
-				log.Printf("Error unmarshalling message: %s\n", err)
+				log.Printf("Error processing message: %s\n", err)
 			}
-
-			if err = validateData(&data); err != nil {
-				log.Printf("Error validating data: %s\n", err)
-			}
-
-			err = repository.InsertWithRetry(ctx, db, &data)
-			if err != nil {
-				log.Printf("Error inserting order: %s\n", err)
-			}
-
-			log.Printf("Message on %s: %s\n", msg.Topic, string(msg.Value))
 		}
 	}
+}
+
+func processMessage(ctx context.Context, repo repository.OrderRepository, msg *kafka.Message) error {
+	var data models.CombinedData
+	log.Printf("Received message: %s\n", string(msg.Value))
+	err := json.Unmarshal(msg.Value, &data)
+	if err != nil {
+		log.Printf("Error unmarshalling message: %s\n", err)
+		return err
+	}
+
+	if err = validateData(&data); err != nil {
+		log.Printf("Error validating data: %s\n", err)
+		return err
+	}
+
+	err = repo.InsertWithRetry(ctx, &data)
+	if err != nil {
+		log.Printf("Error inserting order: %s\n", err)
+		return err
+	}
+
+	log.Printf("Message on %s: %s\n", msg.Topic, string(msg.Value))
+	return nil
 }
 
 func validateData(data *models.CombinedData) error {

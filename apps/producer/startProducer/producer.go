@@ -1,33 +1,52 @@
-package kafka
+package startProducer
 
 import (
 	"context"
 	"encoding/json"
 	"log"
+	"producer/models"
 	"time"
 
-	"github.com/Kost0/L0/internal/models"
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 )
 
+// SendTestMessage launches cmd producer and sends message to consumer
 func SendTestMessage() {
 	writer := &kafka.Writer{
-		Addr:     kafka.TCP("localhost:9092"),
-		Topic:    "orders",
+		Addr:     kafka.TCP("kafka:9092"),
+		Topic:    "test123",
 		Balancer: &kafka.LeastBytes{},
 	}
 	defer writer.Close()
 
-	orderUUID := uuid.New().String()
-	deliveryUUID := uuid.New().String()
-	paymentUUID := uuid.New().String()
-	ItemUUID := uuid.New().String()
+	data := createValidData()
 
-	orderTime, err := time.Parse(time.RFC3339, "2025-08-11T06:22:19Z")
+	buf, err := json.Marshal(data)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	err = writer.WriteMessages(context.Background(), kafka.Message{
+		Key:   []byte("test"),
+		Value: buf,
+		Time:  time.Now(),
+	})
+
+	if err != nil {
+		log.Printf("Failed to write messages: %s", err)
+	} else {
+		log.Printf("Successfully sent message")
+	}
+
+	print(data.Order.OrderUID)
+}
+
+func createValidData() *models.CombinedData {
+	orderUUID := uuid.New().String()
+	deliveryUUID := uuid.New().String()
+
+	orderTime := time.Now()
 
 	track := "WBILMTESTTRACK"
 	entry := "WBIL"
@@ -47,7 +66,6 @@ func SendTestMessage() {
 	region := "Kraiot"
 	email := "test@gmail.com"
 
-	transaction := "b563feb7b2b84b6test"
 	requestId := ""
 	currency := "USD"
 	provider := "wbpay"
@@ -59,7 +77,6 @@ func SendTestMessage() {
 	customFee := 0
 
 	chrtID := 9934930
-	trackNum := "WBILMTESTTRACK"
 	price := 453
 	rid := "ab4219087a764ae0btest"
 	name2 := "Mascaras"
@@ -76,7 +93,6 @@ func SendTestMessage() {
 			&track,
 			&entry,
 			&deliveryUUID,
-			&paymentUUID,
 			&locale,
 			&internalSignature,
 			&customer,
@@ -97,8 +113,7 @@ func SendTestMessage() {
 			&email,
 		},
 		Payment: models.Payment{
-			&paymentUUID,
-			&transaction,
+			&orderUUID,
 			&requestId,
 			&currency,
 			&provider,
@@ -110,10 +125,8 @@ func SendTestMessage() {
 			&customFee,
 		},
 		Items: []models.Item{models.Item{
-			&ItemUUID,
-			&orderUUID,
 			&chrtID,
-			&trackNum,
+			&track,
 			&price,
 			&rid,
 			&name2,
@@ -126,22 +139,5 @@ func SendTestMessage() {
 		}},
 	}
 
-	buf, err := json.Marshal(data)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = writer.WriteMessages(context.Background(), kafka.Message{
-		Key:   []byte("test"),
-		Value: buf,
-		Time:  time.Now(),
-	})
-
-	if err != nil {
-		log.Printf("Failed to write messages: %s", err)
-	} else {
-		log.Printf("Successfully sent message")
-	}
-
-	print(orderUUID)
+	return &data
 }

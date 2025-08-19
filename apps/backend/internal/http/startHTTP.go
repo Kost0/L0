@@ -1,3 +1,4 @@
+// Package http provides work with net
 package http
 
 import (
@@ -14,11 +15,21 @@ import (
 	"github.com/swaggo/http-swagger"
 )
 
+// StartHTTPServer starts the server and handlers
+// Accepts:
+//   - ctx: context
+//   - repo: repository
+//   - cache: struct for work with cache
 func StartHTTPServer(ctx context.Context, repo *repository.SQLOrderRepository, cache *cache.OrderCache) {
 	r := chi.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Hello World")
+	})
+
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
 	})
 
 	r.Get("/swagger/*", httpSwagger.WrapHandler)

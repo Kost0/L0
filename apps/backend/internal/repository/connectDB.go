@@ -6,6 +6,10 @@ import (
 	"os"
 )
 
+// ConnectDB connects to the database
+// Returns:
+//   - pointer on database
+//   - error if something wrong
 func ConnectDB() (*sql.DB, error) {
 	dbHost := os.Getenv("DB_HOST")
 	dbUser := os.Getenv("DB_USER")

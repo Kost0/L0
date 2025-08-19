@@ -7,6 +7,8 @@ RUN go mod download
 
 COPY . .
 
+RUN go test -v -short ./...
+
 RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/server/main.go
 
 FROM alpine:latest

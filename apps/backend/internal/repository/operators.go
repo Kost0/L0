@@ -11,15 +11,28 @@ import (
 	"github.com/Kost0/L0/internal/models"
 )
 
+// SQLOrderRepository provides information about database
 type SQLOrderRepository struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
+// NewOrderRepository create new SQLOrderRepository
+// Accepts:
+//   - db: database
+//
+// Returns:
+//   - *SQLOrderRepository
 func NewOrderRepository(db *sql.DB) *SQLOrderRepository {
-	return &SQLOrderRepository{db: db}
+	return &SQLOrderRepository{DB: db}
 }
 
-func InsertOrder(db *sql.DB, data *models.CombinedData) error {
+// InsertOrder insert data to database
+// Accepts:
+//   - data: all data about order
+//
+// Returns:
+//   - error if something wrong
+func (r *SQLOrderRepository) InsertOrder(data *models.CombinedData) error {
 	delivery := data.Delivery
 	payment := data.Payment
 	order := data.Order
@@ -40,7 +53,6 @@ INSERT INTO delivery (
 
 	queryPayment := `
 INSERT INTO payment (
-    id,
     transaction,
     request_id,
     currency,
@@ -51,7 +63,7 @@ INSERT INTO payment (
     delivery_cost,
     goods_total,
     custom_fee
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 `
 
 	queryOrder := `
@@ -60,7 +72,6 @@ INSERT INTO orders (
     track_number,
     entry,
     delivery_id,
-    payment_id,
     locale,
     internal_signature,
     customer_id,
@@ -69,12 +80,10 @@ INSERT INTO orders (
     sm_id,
     date_created,
     oof_shard
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);
 `
 	queryItem := `
 INSERT INTO items (
-    id,
-    order_id,
     chrt_id,
     track_number,
     price,
@@ -86,10 +95,10 @@ INSERT INTO items (
     nm_id,
     brand,
     status
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13);
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);
 `
 
-	tx, err := db.Begin()
+	tx, err := r.DB.Begin()
 	if err != nil {
 		return err
 	}
@@ -106,11 +115,29 @@ INSERT INTO items (
 	)
 	if err != nil {
 		tx.Rollback()
-		return errors.New("failed to insert delivery")
+		return err
+	}
+	
+	_, err = tx.Exec(queryOrder,
+		order.OrderUID,
+		*order.TrackNumber,
+		*order.Entry,
+		*order.DeliveryID,
+		*order.Locale,
+		*order.InternalSignature,
+		*order.CustomerID,
+		*order.DeliveryService,
+		*order.Shardkey,
+		*order.SmID,
+		*order.DateCreated,
+		*order.OofShard,
+	)
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	_, err = tx.Exec(queryPayment,
-		*payment.ID,
 		*payment.Transaction,
 		*payment.RequestID,
 		*payment.Currency,
@@ -124,33 +151,11 @@ INSERT INTO items (
 	)
 	if err != nil {
 		tx.Rollback()
-		return errors.New("failed to insert payment")
-	}
-
-	_, err = tx.Exec(queryOrder,
-		order.OrderUID,
-		*order.TrackNumber,
-		*order.Entry,
-		*order.DeliveryID,
-		*order.PaymentID,
-		*order.Locale,
-		*order.InternalSignature,
-		*order.CustomerID,
-		*order.DeliveryService,
-		*order.Shardkey,
-		*order.SmID,
-		*order.DateCreated,
-		*order.OofShard,
-	)
-	if err != nil {
-		tx.Rollback()
-		return errors.New("failed to insert order")
+		return err
 	}
 
 	for _, i := range items {
 		_, err = tx.Exec(queryItem,
-			*i.ID,
-			*i.OrderUID,
 			*i.ChrtID,
 			*i.TrackNumber,
 			*i.Price,
@@ -165,7 +170,7 @@ INSERT INTO items (
 		)
 		if err != nil {
 			tx.Rollback()
-			return errors.New("failed to insert item")
+			return err
 		}
 	}
 
@@ -177,11 +182,18 @@ INSERT INTO items (
 	return nil
 }
 
-func InsertWithRetry(ctx context.Context, db *sql.DB, data *models.CombinedData) error {
+// InsertWithRetry insert data to database using multiple attempts if necessary
+// Accepts:
+//   - ctx: context
+//   - data: all data about order
+//
+// Returns:
+//   - error if something wrong
+func (r *SQLOrderRepository) InsertWithRetry(ctx context.Context, data *models.CombinedData) error {
 	maxRetries := 5
 	delay := time.Millisecond * 50
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		err := InsertOrder(db, data)
+		err := r.InsertOrder(data)
 		if err == nil {
 			return nil
 		}
@@ -202,6 +214,13 @@ func InsertWithRetry(ctx context.Context, db *sql.DB, data *models.CombinedData)
 	return fmt.Errorf("insert failed, retry after %d attempts", maxRetries)
 }
 
+// SelectOrder select data from database
+// Accepts:
+//   - orderID: identifier
+//
+// Returns:
+//   - all data about order
+//   - error if something wrong
 func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData, error) {
 	order := models.Order{}
 	delivery := models.Delivery{}
@@ -209,13 +228,12 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 	items := []models.Item{}
 
 	queryOrder := `SELECT * FROM orders WHERE order_uid = $1`
-	row := r.db.QueryRow(queryOrder, orderUID)
+	row := r.DB.QueryRow(queryOrder, orderUID)
 	err := row.Scan(
 		&order.OrderUID,
 		&order.TrackNumber,
 		&order.Entry,
 		&order.DeliveryID,
-		&order.PaymentID,
 		&order.Locale,
 		&order.InternalSignature,
 		&order.CustomerID,
@@ -230,7 +248,7 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 	}
 
 	queryDelivery := `SELECT * FROM delivery WHERE id = $1`
-	row = r.db.QueryRow(queryDelivery, &order.DeliveryID)
+	row = r.DB.QueryRow(queryDelivery, &order.DeliveryID)
 	err = row.Scan(
 		&delivery.ID,
 		&delivery.Name,
@@ -245,10 +263,9 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 		return nil, err
 	}
 
-	queryPayment := `SELECT * FROM payment WHERE id = $1`
-	row = r.db.QueryRow(queryPayment, &order.PaymentID)
+	queryPayment := `SELECT * FROM payment WHERE transaction = $1`
+	row = r.DB.QueryRow(queryPayment, &order.OrderUID)
 	err = row.Scan(
-		&payment.ID,
 		&payment.Transaction,
 		&payment.RequestID,
 		&payment.Currency,
@@ -264,8 +281,8 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 		return nil, err
 	}
 
-	queryItems := `SELECT * FROM items WHERE order_id = $1`
-	rows, err := r.db.Query(queryItems, orderUID)
+	queryItems := `SELECT * FROM items WHERE track_number = $1`
+	rows, err := r.DB.Query(queryItems, &order.TrackNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -274,8 +291,6 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 	for rows.Next() {
 		item := models.Item{}
 		err = rows.Scan(
-			&item.ID,
-			&item.OrderUID,
 			&item.ChrtID,
 			&item.TrackNumber,
 			&item.Price,
@@ -303,6 +318,14 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 	return &data, nil
 }
 
+// SelectWithRetry select data from database using multiple attempts if necessary
+// Accepts:
+//   - ctx: context
+//   - orderID: identifier
+//
+// Returns:
+//   - all data about order
+//   - error if something wrong
 func (r *SQLOrderRepository) SelectWithRetry(ctx context.Context, orderUID string) (*models.CombinedData, error) {
 	maxRetries := 5
 	delay := time.Millisecond * 50

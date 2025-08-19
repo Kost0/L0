@@ -133,6 +133,7 @@ func TestGetRecentOrders_Integration(t *testing.T) {
 	db, tearDown, err := setupTestDB(ctx)
 	assert.NoError(t, err)
 	defer tearDown()
+	defer db.Close()
 
 	err = createShema(db)
 	assert.NoError(t, err)

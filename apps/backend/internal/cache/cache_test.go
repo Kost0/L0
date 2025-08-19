@@ -23,6 +23,21 @@ func (m *MockOrderRepository) SelectOrder(orderID string) (*models.CombinedData,
 	return args.Get(0).(*models.CombinedData), args.Error(1)
 }
 
+func (m *MockOrderRepository) SelectWithRetry(ctx context.Context, orderID string) (*models.CombinedData, error) {
+	args := m.Called(orderID)
+	return args.Get(0).(*models.CombinedData), args.Error(1)
+}
+
+func (m *MockOrderRepository) InsertWithRetry(ctx context.Context, order *models.CombinedData) error {
+	args := m.Called(ctx, order)
+	return args.Error(0)
+}
+
+func (m *MockOrderRepository) InsertOrder(order *models.CombinedData) error {
+	args := m.Called(order)
+	return args.Error(0)
+}
+
 func TestOrderCache_SetAndGet(t *testing.T) {
 	cache := NewOrderCache(10 * time.Second)
 
@@ -82,8 +97,8 @@ func TestOrderCache_WarmUpCache_Success(t *testing.T) {
 	combined1 := &models.CombinedData{Order: models.Order{OrderUID: id1}}
 	combined2 := &models.CombinedData{Order: models.Order{OrderUID: id2}}
 
-	mockRepo.On("SelectOrder", "order-1").Return(combined1, nil)
-	mockRepo.On("SelectOrder", "order-2").Return(combined2, nil)
+	mockRepo.On("SelectWithRetry", "order-1").Return(combined1, nil)
+	mockRepo.On("SelectWithRetry", "order-2").Return(combined2, nil)
 
 	log.SetOutput(ioutil.Discard)
 
@@ -112,7 +127,7 @@ func TestOrderCache_WarmUpCache_SelectOrderError(t *testing.T) {
 	mock.ExpectQuery(`SELECT order_uid FROM orders`).WillReturnRows(rows)
 
 	mockRepo := new(MockOrderRepository)
-	mockRepo.On("SelectOrder", "order-1").Return((*models.CombinedData)(nil), sql.ErrNoRows)
+	mockRepo.On("SelectWithRetry", "order-1").Return((*models.CombinedData)(nil), sql.ErrNoRows)
 
 	cache := NewOrderCache(10 * time.Second)
 	err = cache.WarmUpCache(db, mockRepo, context.Background())
@@ -136,7 +151,7 @@ func TestGetRecentOrders_Success(t *testing.T) {
 	id := "order-1"
 
 	expected := &models.CombinedData{Order: models.Order{OrderUID: id}}
-	mockRepo.On("SelectOrder", "order-1").Return(expected, nil)
+	mockRepo.On("SelectWithRetry", "order-1").Return(expected, nil)
 
 	data, err := getRecentOrders(db, mockRepo, context.Background())
 

@@ -1,3 +1,4 @@
+// Package handlers provides request processing
 package handlers
 
 import (
@@ -14,9 +15,10 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// Handler contains tools for working with data
 type Handler struct {
-	Repo  *repository.SQLOrderRepository
-	Cache *cache.OrderCache
+	Repo  repository.OrderRepository
+	Cache cache.Cache
 }
 
 // GetOrderByID godoc
@@ -42,12 +44,15 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
+	start := time.Now()
+
 	data, ok := h.Cache.Get(orderID)
 	if ok {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		log.Printf("The data was retrieved from the cache in %d milliseconds", time.Since(start))
 		return
 	}
 
@@ -56,6 +61,7 @@ func (h *Handler) GetOrderByID(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Repo.SelectWithRetry(ctx, orderID)
 	log.Printf("Selected order %+v", data)
+	log.Printf("The data was retrieved from the database in %d milliseconds", time.Since(start))
 	if err != nil {
 		log.Println(err)
 		if errors.Is(err, sql.ErrNoRows) {

@@ -1,5 +1,5 @@
 CREATE TABLE delivery (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(50) NOT NULL,
     zip VARCHAR(50) NOT NULL,
@@ -9,26 +9,11 @@ CREATE TABLE delivery (
     email VARCHAR(255) NOT NULL
 );
 
-CREATE TABLE payment (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    transaction VARCHAR(255) NOT NULL,
-    request_id VARCHAR(255),
-    currency VARCHAR(3) NOT NULL,
-    provider VARCHAR(255) NOT NULL,
-    amount INT NOT NULL,
-    payment_dt BIGINT NOT NULL,
-    bank VARCHAR(255) NOT NULL,
-    delivery_cost INT NOT NULL,
-    goods_total INT NOT NULL,
-    custom_fee INT NOT NULL
-);
-
 CREATE TABLE orders (
-    order_uid VARCHAR(255) PRIMARY KEY,
-    track_number VARCHAR(255) NOT NULL,
+    order_uid UUID PRIMARY KEY,
+    track_number VARCHAR(255) NOT NULL UNIQUE,
     entry VARCHAR(50) NOT NULL,
     delivery_id UUID REFERENCES delivery(id),
-    payment_id UUID REFERENCES payment(id),
     locale VARCHAR(10) NOT NULL,
     internal_signature VARCHAR(255),
     customer_id VARCHAR(255) NOT NULL,
@@ -39,11 +24,22 @@ CREATE TABLE orders (
     oof_shard VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE payment (
+     transaction UUID REFERENCES orders(order_uid),
+     request_id VARCHAR(255),
+     currency VARCHAR(3) NOT NULL,
+     provider VARCHAR(255) NOT NULL,
+     amount INT NOT NULL,
+     payment_dt BIGINT NOT NULL,
+     bank VARCHAR(255) NOT NULL,
+     delivery_cost INT NOT NULL,
+     goods_total INT NOT NULL,
+     custom_fee INT NOT NULL
+);
+
 CREATE TABLE items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    order_id VARCHAR(255) REFERENCES orders(order_uid),
     chrt_id INT NOT NULL,
-    track_number VARCHAR(100) NOT NULL,
+    track_number VARCHAR(255) REFERENCES orders(track_number),
     price INT NOT NULL,
     rid VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,

@@ -19,10 +19,10 @@ async function fetchOrder() {
         const rawOrder = await response.json();
 
         const adaptedOrder = {
-            ...rawOrder.Order,
-            Delivery: rawOrder.Delivery,
-            Payment: rawOrder.Payment,
-            Items: rawOrder.Items
+            ...rawOrder.order,
+            Delivery: rawOrder.delivery,
+            Payment: rawOrder.payment,
+            Items: rawOrder.items
         }
         resultDiv.innerHTML = generateOrderTable(adaptedOrder);
     } catch (error) {
