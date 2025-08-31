@@ -89,7 +89,7 @@ func (c *OrderCache) WarmUpCache(db *sql.DB, repo repository.OrderRepository, ct
 	return nil
 }
 
-func getRecentOrders(db *sql.DB, repo repository.OrderRepository, ctx context.Context) ([]*models.CombinedData, error) {
+func getRecentOrders(db *sql.DB, repo repository.OrderRepository, ctx context.Context) (allData []*models.CombinedData, err error) {
 	query := `
 SELECT order_uid FROM orders
 WHERE date_created >= NOW() - INTERVAL '7 days'
@@ -99,9 +99,13 @@ WHERE date_created >= NOW() - INTERVAL '7 days'
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if errClose := rows.Close(); errClose != nil {
+			err = errClose
+		}
+	}()
 
-	allData := []*models.CombinedData{}
+	allData = []*models.CombinedData{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()

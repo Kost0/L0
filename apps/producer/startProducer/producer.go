@@ -18,7 +18,11 @@ func SendTestMessage() {
 		Topic:    "test123",
 		Balancer: &kafka.LeastBytes{},
 	}
-	defer writer.Close()
+	defer func() {
+		if err := writer.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	data := createValidData()
 

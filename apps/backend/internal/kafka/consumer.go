@@ -35,7 +35,11 @@ func StartKafka(ctx context.Context, repo repository.OrderRepository) {
 		StartOffset:      kafka.FirstOffset,
 		CommitInterval:   0,
 	})
-	defer reader.Close()
+	defer func() {
+		if err := reader.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
 	for {
 		select {
@@ -46,7 +50,7 @@ func StartKafka(ctx context.Context, repo repository.OrderRepository) {
 			msg, err := reader.ReadMessage(ctx)
 
 			if err != nil {
-				if ctx.Err() != nil || ctx.Err() == context.DeadlineExceeded {
+				if ctx.Err() != nil || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 					return
 				}
 				log.Printf("Error reading message: %s\n", err)

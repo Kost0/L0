@@ -114,10 +114,13 @@ INSERT INTO items (
 		*delivery.Email,
 	)
 	if err != nil {
-		tx.Rollback()
+		errRollBack := tx.Rollback()
+		if errRollBack != nil {
+			return errRollBack
+		}
 		return err
 	}
-	
+
 	_, err = tx.Exec(queryOrder,
 		order.OrderUID,
 		*order.TrackNumber,
@@ -133,7 +136,10 @@ INSERT INTO items (
 		*order.OofShard,
 	)
 	if err != nil {
-		tx.Rollback()
+		errRollBack := tx.Rollback()
+		if errRollBack != nil {
+			return errRollBack
+		}
 		return err
 	}
 
@@ -150,7 +156,10 @@ INSERT INTO items (
 		*payment.CustomFee,
 	)
 	if err != nil {
-		tx.Rollback()
+		errRollBack := tx.Rollback()
+		if errRollBack != nil {
+			return errRollBack
+		}
 		return err
 	}
 
@@ -169,7 +178,10 @@ INSERT INTO items (
 			*i.Status,
 		)
 		if err != nil {
-			tx.Rollback()
+			errRollBack := tx.Rollback()
+			if errRollBack != nil {
+				return errRollBack
+			}
 			return err
 		}
 	}
@@ -221,7 +233,7 @@ func (r *SQLOrderRepository) InsertWithRetry(ctx context.Context, data *models.C
 // Returns:
 //   - all data about order
 //   - error if something wrong
-func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData, error) {
+func (r *SQLOrderRepository) SelectOrder(orderUID string) (data *models.CombinedData, err error) {
 	order := models.Order{}
 	delivery := models.Delivery{}
 	payment := models.Payment{}
@@ -229,7 +241,7 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 
 	queryOrder := `SELECT * FROM orders WHERE order_uid = $1`
 	row := r.DB.QueryRow(queryOrder, orderUID)
-	err := row.Scan(
+	err = row.Scan(
 		&order.OrderUID,
 		&order.TrackNumber,
 		&order.Entry,
@@ -286,7 +298,11 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if errClose := rows.Close(); errClose != nil {
+			err = errClose
+		}
+	}()
 
 	for rows.Next() {
 		item := models.Item{}
@@ -309,13 +325,13 @@ func (r *SQLOrderRepository) SelectOrder(orderUID string) (*models.CombinedData,
 		items = append(items, item)
 	}
 
-	data := models.CombinedData{
+	data = &models.CombinedData{
 		Order:    order,
 		Payment:  payment,
 		Delivery: delivery,
 		Items:    items,
 	}
-	return &data, nil
+	return
 }
 
 // SelectWithRetry select data from database using multiple attempts if necessary

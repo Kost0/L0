@@ -3,6 +3,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,12 +25,18 @@ func StartHTTPServer(ctx context.Context, repo *repository.SQLOrderRepository, c
 	r := chi.NewRouter()
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello World")
+		_, err := fmt.Fprintf(w, "Hello World")
+		if err != nil {
+			log.Println(err)
+		}
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, err := w.Write([]byte("OK"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
 	r.Get("/swagger/*", httpSwagger.WrapHandler)
@@ -57,7 +64,7 @@ func StartHTTPServer(ctx context.Context, repo *repository.SQLOrderRepository, c
 	}()
 
 	log.Println("Starting HTTP server...")
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("Error starting HTTP server: %v\n", err)
 	}
 }

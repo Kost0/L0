@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -32,7 +33,7 @@ func RunMigrations(db *sql.DB, dbName string) error {
 		return fmt.Errorf("could not create migration: %w", err)
 	}
 
-	if err = m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("could not apply migration: %w", err)
 	}
 
