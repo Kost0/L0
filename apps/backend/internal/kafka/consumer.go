@@ -21,8 +21,8 @@ import (
 //   - db: database
 func StartKafka(ctx context.Context, repo repository.OrderRepository) {
 	brokerAddress := "kafka:9092"
-	topic := "test123"
-	groupID := "myOrdersGroup-12345"
+	topic := "test1234"
+	groupID := "myOrdersGroup-123456"
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:          []string{brokerAddress},
@@ -41,24 +41,19 @@ func StartKafka(ctx context.Context, repo repository.OrderRepository) {
 		}
 	}()
 
+	dlqTopic := "dlq"
+
+	dlqHandler := NewDLQHandler([]string{brokerAddress}, topic, dlqTopic)
+
 	for {
 		select {
 		case <-ctx.Done():
 			log.Println("Shutting down Kafka server...")
 			return
 		default:
-			msg, err := reader.ReadMessage(ctx)
-
+			err := dlqHandler.ProcessWithRetry(ctx, repo)
 			if err != nil {
-				if ctx.Err() != nil || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-					return
-				}
-				log.Printf("Error reading message: %s\n", err)
-				continue
-			}
-			err = processMessage(ctx, repo, &msg)
-			if err != nil {
-				log.Printf("Error processing message: %s\n", err)
+				log.Println(err)
 			}
 		}
 	}

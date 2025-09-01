@@ -21,7 +21,7 @@ import (
 func StartProducer() {
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP("kafka:9092"),
-		Topic:    "test123",
+		Topic:    "test1234",
 		Balancer: &kafka.LeastBytes{},
 	}
 	defer func() {
@@ -47,6 +47,8 @@ func StartProducer() {
 				return
 			default:
 				sendTestMessage(writer)
+				time.Sleep(time.Second)
+				sendWrongMessage(writer)
 				time.Sleep(time.Second)
 			}
 		}
@@ -76,6 +78,27 @@ func sendTestMessage(writer *kafka.Writer) {
 	}
 
 	print(data.Order.OrderUID)
+}
+
+func sendWrongMessage(writer *kafka.Writer) {
+	data := createWrongData()
+
+	buf, err := json.Marshal(data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = writer.WriteMessages(context.Background(), kafka.Message{
+		Key:   []byte("test"),
+		Value: buf,
+		Time:  time.Now(),
+	})
+
+	if err != nil {
+		log.Printf("Failed to write messages: %s", err)
+	} else {
+		log.Printf("Successfully sent message")
+	}
 }
 
 func createValidData() *models.CombinedData {
@@ -177,4 +200,8 @@ func createValidData() *models.CombinedData {
 	}
 
 	return &data
+}
+
+func createWrongData() *models.CombinedData {
+	return &models.CombinedData{}
 }
