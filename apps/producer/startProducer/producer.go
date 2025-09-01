@@ -4,15 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"math/rand"
+	"os"
+	"os/signal"
 	"producer/models"
+	"strconv"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 )
 
-// SendTestMessage launches cmd producer and sends message to consumer
-func SendTestMessage() {
+// StartProducer launches kafka producer
+func StartProducer() {
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP("kafka:9092"),
 		Topic:    "test123",
@@ -24,6 +30,32 @@ func SendTestMessage() {
 		}
 	}()
 
+	rand.Seed(time.Now().UnixNano())
+
+	wg := &sync.WaitGroup{}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Shutting down Kafka server...")
+				return
+			default:
+				sendTestMessage(writer)
+				time.Sleep(time.Second)
+			}
+		}
+	}()
+
+	wg.Wait()
+}
+
+func sendTestMessage(writer *kafka.Writer) {
 	data := createValidData()
 
 	buf, err := json.Marshal(data)
@@ -52,7 +84,8 @@ func createValidData() *models.CombinedData {
 
 	orderTime := time.Now()
 
-	track := "WBILMTESTTRACK"
+	track := strconv.Itoa(rand.Int())
+
 	entry := "WBIL"
 	locale := "en"
 	internalSignature := ""
