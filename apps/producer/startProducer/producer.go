@@ -8,12 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"producer/models"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -21,7 +20,7 @@ import (
 func StartProducer() {
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP("kafka:9092"),
-		Topic:    "test1234",
+		Topic:    "test1",
 		Balancer: &kafka.LeastBytes{},
 	}
 	defer func() {
@@ -101,107 +100,43 @@ func sendWrongMessage(writer *kafka.Writer) {
 	}
 }
 
-func createValidData() *models.CombinedData {
-	orderUUID := uuid.New().String()
-	deliveryUUID := uuid.New().String()
-
-	orderTime := time.Now()
-
-	track := strconv.Itoa(rand.Int())
-
-	entry := "WBIL"
-	locale := "en"
-	internalSignature := ""
-	customer := "test"
-	deliveryService := "meest"
-	shardKey := "9"
-	smID := 99
-	oofShard := "1"
-
-	name := "Test Testov"
-	phone := "+9720000000"
-	zip := "2639809"
-	city := "Kiryat Mozkin"
-	address := "Ploshad Mira 15"
-	region := "Kraiot"
-	email := "test@gmail.com"
-
-	requestId := ""
-	currency := "USD"
-	provider := "wbpay"
-	amount := 1817
-	paymentDT := 1637907727
-	bank := "alpha"
-	deliveryCost := 1500
-	goodsTotal := 317
-	customFee := 0
-
-	chrtID := 9934930
-	price := 453
-	rid := "ab4219087a764ae0btest"
-	name2 := "Mascaras"
-	sale := 30
-	size := "0"
-	totalPrice := 317
-	nmId := 2389212
-	brand := "Vivienne Sabo"
-	status := 202
-
-	data := models.CombinedData{
-		Order: models.Order{
-			orderUUID,
-			&track,
-			&entry,
-			&deliveryUUID,
-			&locale,
-			&internalSignature,
-			&customer,
-			&deliveryService,
-			&shardKey,
-			&smID,
-			&orderTime,
-			&oofShard,
-		},
-		Delivery: models.Delivery{
-			&deliveryUUID,
-			&name,
-			&phone,
-			&zip,
-			&city,
-			&address,
-			&region,
-			&email,
-		},
-		Payment: models.Payment{
-			&orderUUID,
-			&requestId,
-			&currency,
-			&provider,
-			&amount,
-			&paymentDT,
-			&bank,
-			&deliveryCost,
-			&goodsTotal,
-			&customFee,
-		},
-		Items: []models.Item{models.Item{
-			&chrtID,
-			&track,
-			&price,
-			&rid,
-			&name2,
-			&sale,
-			&size,
-			&totalPrice,
-			&nmId,
-			&brand,
-			&status,
-		}},
-	}
-
-	return &data
-}
-
 func createWrongData() *models.CombinedData {
 	return &models.CombinedData{}
+}
+
+func createValidData() *models.CombinedData {
+	order := &models.Order{}
+	pay := &models.Payment{}
+	deliv := &models.Delivery{}
+	item := &models.Item{}
+
+	err := gofakeit.Struct(order)
+	if err != nil {
+		log.Fatal()
+	}
+	err = gofakeit.Struct(pay)
+	if err != nil {
+		log.Fatal()
+	}
+	err = gofakeit.Struct(deliv)
+	if err != nil {
+		log.Fatal()
+	}
+	err = gofakeit.Struct(item)
+	if err != nil {
+		log.Fatal()
+	}
+
+	order.DeliveryID = deliv.ID
+	pay.Transaction = &order.OrderUID
+	order.TrackNumber = item.TrackNumber
+
+	data := &models.CombinedData{
+		*order,
+		*pay,
+		*deliv,
+		[]models.Item{*item},
+	}
+
+	return data
 }

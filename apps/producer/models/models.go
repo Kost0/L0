@@ -8,73 +8,73 @@ import (
 // Order provides main information about the order
 // @Description Main order information
 type Order struct {
-	OrderUID          string     `json:"orderUID" validate:"required"`
-	TrackNumber       *string    `json:"trackNumber" validate:"required"`
-	Entry             *string    `json:"entry" validate:"required"`
-	DeliveryID        *string    `json:"deliveryID" validate:"required"`
-	Locale            *string    `json:"locale" validate:"required"`
-	InternalSignature *string    `json:"internalSignature"`
-	CustomerID        *string    `json:"customerID" validate:"required"`
-	DeliveryService   *string    `json:"deliveryService" validate:"required"`
-	Shardkey          *string    `json:"shardKey" validate:"required"`
-	SmID              *int       `json:"smID" validate:"required"`
-	DateCreated       *time.Time `json:"dateCreated" validate:"required"`
-	OofShard          *string    `json:"oofShard" validate:"required"`
+	OrderUID          string  `fake:"{uuid}"`
+	TrackNumber       *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Entry             *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	DeliveryID        *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Locale            *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	InternalSignature *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	CustomerID        *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	DeliveryService   *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Shardkey          *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	SmID              *int    `fake:"{uint8}"`
+	DateCreated       *time.Time
+	OofShard          *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
 }
 
 // Delivery provides information about the delivery
 // @Description delivery information
 type Delivery struct {
-	ID      *string `json:"id" validate:"required"`
-	Name    *string `json:"name" validate:"required"`
-	Phone   *string `json:"phone" validate:"required"`
-	Zip     *string `json:"zip" validate:"required"`
-	City    *string `json:"city" validate:"required"`
-	Address *string `json:"address" validate:"required"`
-	Region  *string `json:"region" validate:"required"`
-	Email   *string `json:"email" validate:"required"`
+	ID      *string `fake:"{uuid}"`
+	Name    *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Phone   *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Zip     *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	City    *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Address *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Region  *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Email   *string `fake:"{email}"`
 }
 
 // Payment provides information about the payment
 // @Description payment information
 type Payment struct {
-	Transaction  *string `json:"transaction" validate:"required"`
-	RequestID    *string `json:"requestID"`
-	Currency     *string `json:"currency" validate:"required"`
-	Provider     *string `json:"provider" validate:"required"`
-	Amount       *int    `json:"amount" validate:"required"`
-	PaymentDT    *int    `json:"paymentDT" validate:"required"`
-	Bank         *string `json:"bank" validate:"required"`
-	DeliveryCost *int    `json:"deliveryCost" validate:"required"`
-	GoodsTotal   *int    `json:"goodsTotal" validate:"required"`
-	CustomFee    *int    `json:"customFee" validate:"required"`
+	Transaction  *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	RequestID    *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Currency     *string `fake:"{regex:[a-zA-Z0-9]{1,3}}"`
+	Provider     *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Amount       *int    `fake:"{uint8}"`
+	PaymentDT    *int    `fake:"{uint8}"`
+	Bank         *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	DeliveryCost *int    `fake:"{uint8}"`
+	GoodsTotal   *int    `fake:"{uint8}"`
+	CustomFee    *int    `fake:"{uint8}"`
 }
 
 // Item provides information about the product
 // @Description Product information
 type Item struct {
-	ChrtID      *int    `json:"chrtID" validate:"required"`
-	TrackNumber *string `json:"trackNumber" validate:"required"`
-	Price       *int    `json:"price" validate:"required"`
-	Rid         *string `json:"rid" validate:"required"`
-	Name        *string `json:"name" validate:"required"`
-	Sale        *int    `json:"sale" validate:"required"`
-	Size        *string `json:"size" validate:"required"`
-	TotalPrice  *int    `json:"totalPrice" validate:"required"`
-	NmID        *int    `json:"nmID" validate:"required"`
-	Brand       *string `json:"brand" validate:"required"`
-	Status      *int    `json:"status" validate:"required"`
+	ChrtID      *int    `fake:"{uint8}"`
+	TrackNumber *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Price       *int    `fake:"{uint8}"`
+	Rid         *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Name        *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Sale        *int    `fake:"{uint8}"`
+	Size        *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	TotalPrice  *int    `fake:"{uint8}"`
+	NmID        *int    `fake:"{uint8}"`
+	Brand       *string `fake:"{regex:[a-zA-Z0-9]{1,10}}"`
+	Status      *int    `fake:"{uint8}"`
 }
 
 // CombinedData presents all the information about the order
 // @Description Information about the order and nested structures
 type CombinedData struct {
 	// Main order information
-	Order Order `json:"order"`
+	Order Order
 	// payment information
-	Payment Payment `json:"payment"`
+	Payment Payment
 	// delivery information
-	Delivery Delivery `json:"delivery"`
+	Delivery Delivery
 	// items information
-	Items []Item `json:"items"`
+	Items []Item
 }
