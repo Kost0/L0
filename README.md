@@ -60,7 +60,6 @@ docker-compose up
 
 После запуска backend сервиса, Swagger документация доступна по адресу:
 - `http://localhost:8080/swagger/index.html`
-- `http://localhost:8080/swagger.json`
 
 ## Производительность и масштабирование
 
